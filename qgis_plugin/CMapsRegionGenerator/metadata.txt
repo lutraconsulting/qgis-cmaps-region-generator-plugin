@@ -1,0 +1,51 @@
+# This file contains metadata for your plugin. Beginning
+# with version 1.8 this is the preferred way to supply information about a
+# plugin. The current method of embedding metadata in __init__.py will
+# be supported until version 2.0
+
+# This file should be included when you package your plugin.
+
+# Mandatory items:
+
+
+[general]
+name=CMaps Region Generator
+qgisMinimumVersion=1.8
+qgisMaximumVersion=2.99
+description=Automate merging features using a CSV file definition.
+version=1.1.0
+author=Lutra Consulting for Centigon Solutions
+email=sales@centigonsolutions.com
+
+# end of mandatory metadata
+
+# Optional items:
+
+# Uncomment the following line and add your changelog entries:
+changelog=1.1.0 - New features:
+ - Better control over standard geography and region definitions
+ - Additional output formats
+ - Improved help
+ <p>1.0.3 - Bug fixes:
+ - Addressed issue seen in QGIS 2.2 resulting in AttributeError: 'NoneType' object has no attribute 'combine'.
+ New features:
+ - Added validation of input geometry.
+ <p>1.0.2 - Bug fixes:
+ - Updated license
+ <p>1.0.1 - New features:
+ - Support for QGIS 2.0
+ <p>1.0.0 - Initial release.
+
+# tags are comma separated with spaces allowed
+tags=
+
+homepage=https://cmapsconnect.com/cmaps-analytics-region-creator/#gsc.tab=0
+tracker=https://github.com/lutraconsulting/qgis-cmaps-region-generator-plugin/issues
+repository=https://github.com/lutraconsulting/qgis-cmaps-region-generator-plugin
+icon=icon.png
+# experimental flag
+experimental=False
+
+# deprecated flag (applies to the whole plugin, not just a single version
+deprecated=False
+

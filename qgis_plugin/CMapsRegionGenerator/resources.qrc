@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/plugins/cmapsregiongenerator" >
+        <file>icon.png</file>
+    </qresource>
+    <qresource prefix="/plugins/cmapsregiongenerator" >
+        <file>centigonsolutions_logo.png</file>
+    </qresource>
+    <qresource prefix="/plugins/cmapsregiongenerator" >
+        <file>lutra_logo.png</file>
+    </qresource>
+</RCC>
