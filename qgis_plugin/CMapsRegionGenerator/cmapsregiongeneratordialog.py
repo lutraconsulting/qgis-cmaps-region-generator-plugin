@@ -283,13 +283,16 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         if self.firstRowIsHeaderCheckBox.isChecked():
             # Eat header
             reader.next()
+        standardGeogColIdx = self.standardGeographyColumnComboBox.currentIndex()
+        yourRegionDefColIdx = self.yourRegionDefinitionColumnComboBox.currentIndex()
         for row in reader:
-            fips = row[0]
-            regionId = row[1]
+            fips = row[standardGeogColIdx]
+            regionId = row[yourRegionDefColIdx]
             if not regionId in uniqueRegionIds.keys():
-                uniqueRegionIds[regionId] = [fips]
+                uniqueRegionIds[regionId] = { 'subregion_names': [fips],
+                                              'matched_subregion_names': [] }
             else:
-                uniqueRegionIds[regionId].append(fips)
+                uniqueRegionIds[regionId]['subregion_names'].append(fips)
         del reader
         csvFileH.close()
         
@@ -299,7 +302,10 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         feat = QgsFeature()
         prov = self.inputLayer.dataProvider()
         allAttrs = prov.attributeIndexes()
-        for region, subRegions in uniqueRegionIds.iteritems():
+        hasMismatches = False
+        mismatchReport = 'Custom Region,Unmatched Subregions\n'  # Header
+        for region, subRegionInfo in uniqueRegionIds.iteritems():
+            subRegions = subRegionInfo['subregion_names']
             # Make a selection of features
             matchedFeatures = []
             if QGis.QGIS_VERSION_INT >= 20000:
@@ -308,19 +314,31 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
                     subRegionName = str(feat.attributes()[attIdx])
                     if subRegionName in subRegions:
                         matchedFeatures.append(QgsFeature(feat)) ## Append a copy
+                        subRegionInfo['matched_subregion_names'].append(subRegionName)
             else:
                 prov.select(allAttrs)
                 while prov.nextFeature(feat):
                     subRegionName = str(feat.attributeMap()[attIdx].toString())
                     if subRegionName in subRegions:
                         matchedFeatures.append(QgsFeature(feat)) ## Append a copy
+                        subRegionInfo['matched_subregion_names'].append(subRegionName)
             # matchedFeatures should now contain all we require to merge
             # if it has no entries, then no features could be found with this 
             # sub-region attribute so it will be skipped and not appear in the 
             # output.  
+            if len(matchedFeatures) < len(subRegionInfo['subregion_names']):
+                # There are more subregions in the definition than have actually been matched
+                # so the output geometry is likely to have weird holes. Add this information to the
+                # mismatch report
+                hasMismatches = True
+                mismatchReport += '%s\n' % region
+                for subregion in subRegionInfo['subregion_names']:
+                    if subregion not in subRegionInfo['matched_subregion_names']:
+                        mismatchReport += ',%s\n' % subregion
+
             if len(matchedFeatures) == 0:
                 continue
-            
+
             firstFeature = matchedFeatures.pop()
             mergedGeom = QgsGeometry( firstFeature.geometry() )
             for featureToMerge in matchedFeatures:
@@ -355,7 +373,27 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         del geoJsonWriter
         del geoJsonKeylessWriter
         del csvWriter
-        
+        if hasMismatches:
+            mismatchFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '_mismatches.csv'))
+            while True:
+                try:
+                    mmFile = open(mismatchFileName, 'w')
+                    break
+                except:
+                    reply = QMessageBox.question(None, 'File in Use',
+                                                 '%s appears to already be open in another application. Please either close '
+                                                 'the file and retry or click Abort to cancel.' % mismatchFileName,
+                                                 QMessageBox.Retry | QMessageBox.Abort, QMessageBox.Retry)
+                    if reply == QMessageBox.Abort:
+                        return
+
+            mmFile.write(mismatchReport)
+            mmFile.close()
+            QMessageBox.warning(self.iface.mainWindow(),
+                                'Mismatches',
+                                'Failed to locate matching input sub-regions for some of your custom region definitions. Please '
+                                'see %s for more details.' % mismatchFileName)
+
         # Optionally load the layer in QGIS
         if self.loadWhenFinishedCheckBox.isChecked():
             for of in [shapeFileName, geoJsonFileName, geoJsonKeylessFileName, csvFileName]:
