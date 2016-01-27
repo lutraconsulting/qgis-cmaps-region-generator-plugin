@@ -28,6 +28,7 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 from ui_cmapsregiongenerator import Ui_CMapsRegionGenerator
+from tableau_writer import *
 import about_dialog
 
 import os
@@ -239,6 +240,7 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         geoJsonFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '.geojson'))
         geoJsonKeylessFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '_no_keys.geojson'))
         csvFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '.csv'))
+        tableauFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '_tableau.csv'))
         lr = QgsMapLayerRegistry.instance()
         for of in [shapeFileName, geoJsonFileName, geoJsonKeylessFileName, csvFileName]:
             shortName = os.path.basename(of).split('.')[0]
@@ -275,6 +277,17 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         if csvWriter.hasError() != QgsVectorFileWriter.NoError:
             QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Failed to create output file %s' % (csvFileName))
             return
+        while True:
+            try:
+                tableauWriter = TableauWriter(tableauFileName, fields)
+                break
+            except TableauFileCreationError:
+                reply = QMessageBox.question(None, 'File in Use',
+                                                   '%s appears to already be open in another application. Please either close '
+                                                   'the file and retry or click Abort to cancel.' % tableauFileName,
+                                                   QMessageBox.Retry | QMessageBox.Abort, QMessageBox.Retry)
+                if reply == QMessageBox.Abort:
+                    return
 
         # Read CSV control file
         uniqueRegionIds = {} # A dict
@@ -368,11 +381,13 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
             geoJsonWriter.addFeature(outFet)
             geoJsonKeylessWriter.addFeature(keylessFeat)
             csvWriter.addFeature(outFet)
+            tableauWriter.addFeature(outFet)
         # close output file
         del shapeWriter
         del geoJsonWriter
         del geoJsonKeylessWriter
         del csvWriter
+        del tableauWriter
         if hasMismatches:
             mismatchFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '_mismatches.csv'))
             while True:
