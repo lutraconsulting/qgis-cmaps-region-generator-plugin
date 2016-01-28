@@ -32,6 +32,7 @@ class TableauWriter():
         """
         self.fileName = fileName
         self.fields = fields
+        self.regionsWithHoles = []
         self.nextFeatureId = 1
         try:
             self.file = open(self.fileName, 'wb')
@@ -67,8 +68,6 @@ class TableauWriter():
 
     def addFeature(self, feature):
         """
-        TODO:  How do features with holes get treated in terms of their SubPolygonId column?
-        At present we assume there are no holes
         :param feature:
         :return:
         """
@@ -83,23 +82,44 @@ class TableauWriter():
         if feature.geometry().wkbType() == QGis.WKBPolygon:
             poly = feature.geometry().asPolygon()
             self._writePolygon(idAndFields, 1, poly)
+            if len(poly) > 1:
+                if feature['region'] not in self.regionsWithHoles:
+                    self.regionsWithHoles.append(feature['region'])
         elif feature.geometry().wkbType() == QGis.WKBMultiPolygon:
             polys = feature.geometry().asMultiPolygon()
             partNo = 1
             for poly in polys:
                 self._writePolygon(idAndFields, partNo, poly)
                 partNo += 1
+                if len(poly) > 1:
+                    if feature['region'] not in self.regionsWithHoles:
+                        self.regionsWithHoles.append(feature['region'])
         else:
             raise TableauUnexpectedGeometryTypeError()
+
+    def encounteredHoles(self):
+        """
+        Reports whether or not we wrote any geometry that had holes
+        :return:    Boolean - whether we encountered geometry with holes while exporting
+        """
+        return len(self.regionsWithHoles) > 0
+
+    def getHoleSummary(self):
+        """
+        Produces summary content for a CSV file for user to identify regions having holes
+        :return:    String - content for a CSV file describing the problem regions
+        """
+        reportString = ''
+        reportString += 'Regions With Holes\n'
+        for regionWithHole in self.regionsWithHoles:
+            reportString += '%s\n' % regionWithHole
+        return reportString
 
     def _writePolygon(self, idAndFields, subPolygonId, poly):
         if len(poly) < 1:
             raise TableauGeometryError('Polygon had 0 rings')
-        elif len(poly) > 1:
-            # FIXME
-            # raise TableauGeometryError('Polygon had more than 1 ring')
-            pass
         pointId = 1
+        # Notice we're only writing the outer ring
         for vert in poly[0]:
             row = []
             row.extend(idAndFields)

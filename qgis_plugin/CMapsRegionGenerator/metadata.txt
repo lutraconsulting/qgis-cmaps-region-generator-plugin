@@ -14,7 +14,7 @@ qgisMinimumVersion=1.8
 qgisMaximumVersion=2.99
 description=Automate merging features using a CSV file definition.
 about=CMaps Analytics Region Creator is a utility designed for typical business intelligence practitioners or dashboard developers to transform typical geographic administrative areas like zip, state, and country into custom business regions and territories.
-version=1.2.0
+version=1.3.0
 author=Lutra Consulting for Centigon Solutions
 email=sales@centigonsolutions.com
 
@@ -23,7 +23,9 @@ email=sales@centigonsolutions.com
 # Optional items:
 
 # Uncomment the following line and add your changelog entries:
-changelog=1.2.0 - New features:
+changelog=1.3.0 - New features:
+ - Tableau export format
+ <p>1.2.0 - New features:
  - Added warning and reporting of unmatched sub-regions.
  - Bug fixes:
  - Fixed issue where Standard Geography Column and Your Region Definition Column selections were not respected.
@@ -49,7 +51,7 @@ tracker=https://github.com/lutraconsulting/qgis-cmaps-region-generator-plugin/is
 repository=https://github.com/lutraconsulting/qgis-cmaps-region-generator-plugin
 icon=icon.png
 # experimental flag
-experimental=False
+experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version
 deprecated=False

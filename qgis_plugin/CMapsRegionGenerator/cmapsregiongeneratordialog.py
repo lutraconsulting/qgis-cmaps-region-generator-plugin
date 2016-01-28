@@ -61,7 +61,7 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         if self.iface.mapCanvas().currentLayer() == None or \
            self.iface.mapCanvas().currentLayer().type() != QgsMapLayer.VectorLayer:
             # Show QMessageBox (error) and close
-            QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Please first select an input Shapefile.')
+            QMessageBox.critical(self, 'Error', 'Please first select an input Shapefile.')
             self.loadedOK = False
             return
         self.inputLayer = self.iface.mapCanvas().currentLayer()
@@ -206,7 +206,7 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
                 for res in feat.geometry().validateGeometry():
                     errorString += res.what() + '\n'
         if len(errorString) > 0:
-            QMessageBox.critical(self.iface.mainWindow(), 'Invalid Geometry Detected', 'The following geometry errors were detected and must be resolved before generating regions:' + errorString)
+            QMessageBox.critical(self, 'Invalid Geometry Detected', 'The following geometry errors were detected and must be resolved before generating regions:' + errorString)
             return
         
         """
@@ -221,19 +221,19 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         
         outputFolder = self.outputFolderLineEdit.text()
         if outputFolder == '':
-            QMessageBox.critical(self.iface.mainWindow(), 'Error', 'No output folder specified.')
+            QMessageBox.critical(self, 'Error', 'No output folder specified.')
             return
         # Ensure the output folder exists
         if not os.path.isdir(outputFolder):
             try:
                 os.makedirs(outputFolder)
             except WindowsError:
-                QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Failed to make destination folder, %s' % (outputFolder))
+                QMessageBox.critical(self, 'Error', 'Failed to make destination folder, %s' % (outputFolder))
                 return
 
         outputFilePrefix = self.outputFilePrefixLineEdit.text()
         if outputFilePrefix == '':
-            QMessageBox.critical(self.iface.mainWindow(), 'Error', 'No output file prefix specified.')
+            QMessageBox.critical(self, 'Error', 'No output file prefix specified.')
             return
 
         shapeFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '.shp'))
@@ -247,7 +247,7 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
             for layer in lr.mapLayers().values():
                 if layer.type() == QgsMapLayer.VectorLayer and os.path.normpath(str(layer.source())) == of:
                     # The file we are trying to write is already open
-                    QMessageBox.critical(self.iface.mainWindow(), 'Error', 'The file you\'re trying to write (%s) is already loaded, please close it first.' % (layer.name()))
+                    QMessageBox.critical(self, 'Error', 'The file you\'re trying to write (%s) is already loaded, please close it first.' % (layer.name()))
                     return
         
         fields = None
@@ -260,22 +260,22 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
 
         shapeWriter = QgsVectorFileWriter(shapeFileName, "CP1250", fields, QGis.WKBPolygon, targetSrs, 'ESRI Shapefile')
         if shapeWriter.hasError() != QgsVectorFileWriter.NoError:
-            QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Failed to create output file %s' % (shapeFileName))
+            QMessageBox.critical(self, 'Error', 'Failed to create output file %s' % (shapeFileName))
             return
         geoJsonWriter = QgsVectorFileWriter(geoJsonFileName, "CP1250", fields, QGis.WKBPolygon, targetSrs, 'GeoJSON',
                                             layerOptions=['COORDINATE_PRECISION=5'])
         if geoJsonWriter.hasError() != QgsVectorFileWriter.NoError:
-            QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Failed to create output file %s' % (geoJsonFileName))
+            QMessageBox.critical(self, 'Error', 'Failed to create output file %s' % (geoJsonFileName))
             return
         geoJsonKeylessWriter = QgsVectorFileWriter(geoJsonKeylessFileName, "CP1250", emptyFields, QGis.WKBPolygon, targetSrs,
                                                    'GeoJSON', layerOptions=['COORDINATE_PRECISION=5'])
         if geoJsonKeylessWriter.hasError() != QgsVectorFileWriter.NoError:
-            QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Failed to create output file %s' % (geoJsonKeylessFileName))
+            QMessageBox.critical(self, 'Error', 'Failed to create output file %s' % (geoJsonKeylessFileName))
             return
         csvWriter = QgsVectorFileWriter(csvFileName, "CP1250", fields, QGis.WKBPolygon, targetSrs, 'CSV',
                                         layerOptions=['GEOMETRY=AS_WKT'])
         if csvWriter.hasError() != QgsVectorFileWriter.NoError:
-            QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Failed to create output file %s' % (csvFileName))
+            QMessageBox.critical(self, 'Error', 'Failed to create output file %s' % (csvFileName))
             return
         while True:
             try:
@@ -359,7 +359,7 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
             # We now should have a merged geometry
             # Transform to 4326
             if mergedGeom.transform(crsTransform) != 0:
-                QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Failed to perform CRS transform, quitting.')
+                QMessageBox.critical(self, 'Error', 'Failed to perform CRS transform, quitting.')
                 del shapeWriter
                 del geoJsonWriter
                 del geoJsonKeylessWriter
@@ -387,7 +387,23 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         del geoJsonWriter
         del geoJsonKeylessWriter
         del csvWriter
-        del tableauWriter
+
+        if tableauWriter.encounteredHoles():
+            holeFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '_holes.csv'))
+            while True:
+                try:
+                    hFile = open(holeFileName, 'w')
+                    break
+                except:
+                    reply = QMessageBox.question(None, 'File in Use',
+                                                 '%s appears to already be open in another application. Please either close '
+                                                 'the file and retry or click Abort to cancel.' % holeFileName,
+                                                 QMessageBox.Retry | QMessageBox.Abort, QMessageBox.Retry)
+                    if reply == QMessageBox.Abort:
+                        return
+            hFile.write(tableauWriter.getHoleSummary())
+            hFile.close()
+
         if hasMismatches:
             mismatchFileName = os.path.normpath(os.path.join(outputFolder, outputFilePrefix + '_mismatches.csv'))
             while True:
@@ -404,10 +420,20 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
 
             mmFile.write(mismatchReport)
             mmFile.close()
-            QMessageBox.warning(self.iface.mainWindow(),
-                                'Mismatches',
-                                'Failed to locate matching input sub-regions for some of your custom region definitions. Please '
-                                'see %s for more details.' % mismatchFileName)
+
+        if hasMismatches or tableauWriter.encounteredHoles():
+            issuesMessage = 'The following issues were encountered while exporting:'
+            if hasMismatches:
+                issuesMessage += '\n\nFailed to locate matching input sub-regions for some of your custom region definitions.' \
+                                 ' Please see %s for more details.' % mismatchFileName
+            if tableauWriter.encounteredHoles():
+                issuesMessage += '\n\nSome of your custom regions contained holes / inner rings which are not supported by ' \
+                                 'the tableau file format. Holes / inner rings of the affected regions have not been written ' \
+                                 'to the exported tableau file. ' \
+                                 'Please see %s for more details.' % holeFileName
+            QMessageBox.warning(self, 'Export Issues', issuesMessage)
+
+        del tableauWriter
 
         # Optionally load the layer in QGIS
         if self.loadWhenFinishedCheckBox.isChecked():
@@ -415,11 +441,11 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
                 shortName = os.path.basename(of)
                 loadedLayer = QgsVectorLayer(of, shortName, 'ogr')
                 if not loadedLayer.isValid():
-                    QMessageBox.critical(self.iface.mainWindow(), 'Error', 'Failed to load resulting shapefile %s.' % (of))
+                    QMessageBox.critical(self, 'Error', 'Failed to load resulting shapefile %s.' % (of))
                     return
                 QgsMapLayerRegistry.instance().addMapLayer(loadedLayer)
         
-        QMessageBox.information(self.iface.mainWindow(), 'Success', 'Successfully finished processing.')
+        QMessageBox.information(self, 'Success', 'Successfully finished processing.')
     
         
     def showHelp(self):
@@ -450,7 +476,7 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         
         tmpFileName = str( QFileDialog.getOpenFileName(self, 'Select Region Definition', lastFolder, 'Comma Separated Variable Files (*.csv)') )
         if not len(tmpFileName) > 0 or not os.path.exists(tmpFileName):
-            QMessageBox.critical(self.iface.mainWindow(), 'Error', tmpFileName + ' does not seem to exist.')
+            QMessageBox.critical(self, 'Error', tmpFileName + ' does not seem to exist.')
             return
         
         # Store the path we just looked in
