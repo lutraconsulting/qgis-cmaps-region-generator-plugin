@@ -1,6 +1,5 @@
 from qgis.core import QGis
-import csv
-
+from unicode_csv import UnicodeWriter
 
 
 class TableauFileCreationError(Exception):
@@ -38,7 +37,7 @@ class TableauWriter():
             self.file = open(self.fileName, 'wb')
         except IOError:
             raise TableauFileCreationError()
-        self.writer = csv.writer(self.file)
+        self.writer = UnicodeWriter(self.file)
         self._writeHeader()
 
     def __del__(self):
@@ -127,5 +126,7 @@ class TableauWriter():
             row.append(pointId)
             row.append(vert.x())
             row.append(vert.y())
+            # Convert the row to strings
+            row = map(unicode, row)
             self.writer.writerow(row)
             pointId += 1

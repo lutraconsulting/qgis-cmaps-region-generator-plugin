@@ -24,4 +24,4 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 def pythonPluginVersion():
-    return '1.3.0'
+    return '1.3.1'

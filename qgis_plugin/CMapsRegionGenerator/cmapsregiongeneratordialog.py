@@ -32,7 +32,7 @@ from tableau_writer import *
 import about_dialog
 
 import os
-import csv
+from unicode_csv import UnicodeReader
         
 # create the dialog for zoom to point
 
@@ -132,7 +132,7 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
             if csvFilePath.startswith('"') and csvFilePath.endswith('"'):
                 csvFilePath = csvFilePath[1:-1]
             with open(csvFilePath, 'rb') as csvFile:
-                reader = csv.reader(csvFile)
+                reader = UnicodeReader(csvFile)
                 firstRow = reader.next()
                 if len(firstRow) < 2:
                     # There should be at least two columns, return
@@ -258,21 +258,23 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
             fields = { 0 : QgsField("region", QVariant.String) }
         emptyFields = QgsFields()
 
-        shapeWriter = QgsVectorFileWriter(shapeFileName, "CP1250", fields, QGis.WKBPolygon, targetSrs, 'ESRI Shapefile')
+        encoding = 'utf-8'
+
+        shapeWriter = QgsVectorFileWriter(shapeFileName, encoding, fields, QGis.WKBPolygon, targetSrs, 'ESRI Shapefile')
         if shapeWriter.hasError() != QgsVectorFileWriter.NoError:
             QMessageBox.critical(self, 'Error', 'Failed to create output file %s' % (shapeFileName))
             return
-        geoJsonWriter = QgsVectorFileWriter(geoJsonFileName, "CP1250", fields, QGis.WKBPolygon, targetSrs, 'GeoJSON',
+        geoJsonWriter = QgsVectorFileWriter(geoJsonFileName, encoding, fields, QGis.WKBPolygon, targetSrs, 'GeoJSON',
                                             layerOptions=['COORDINATE_PRECISION=5'])
         if geoJsonWriter.hasError() != QgsVectorFileWriter.NoError:
             QMessageBox.critical(self, 'Error', 'Failed to create output file %s' % (geoJsonFileName))
             return
-        geoJsonKeylessWriter = QgsVectorFileWriter(geoJsonKeylessFileName, "CP1250", emptyFields, QGis.WKBPolygon, targetSrs,
+        geoJsonKeylessWriter = QgsVectorFileWriter(geoJsonKeylessFileName, encoding, emptyFields, QGis.WKBPolygon, targetSrs,
                                                    'GeoJSON', layerOptions=['COORDINATE_PRECISION=5'])
         if geoJsonKeylessWriter.hasError() != QgsVectorFileWriter.NoError:
             QMessageBox.critical(self, 'Error', 'Failed to create output file %s' % (geoJsonKeylessFileName))
             return
-        csvWriter = QgsVectorFileWriter(csvFileName, "CP1250", fields, QGis.WKBPolygon, targetSrs, 'CSV',
+        csvWriter = QgsVectorFileWriter(csvFileName, encoding, fields, QGis.WKBPolygon, targetSrs, 'CSV',
                                         layerOptions=['GEOMETRY=AS_WKT'])
         if csvWriter.hasError() != QgsVectorFileWriter.NoError:
             QMessageBox.critical(self, 'Error', 'Failed to create output file %s' % (csvFileName))
@@ -292,7 +294,7 @@ class CMapsRegionGeneratorDialog(QDialog, Ui_CMapsRegionGenerator):
         # Read CSV control file
         uniqueRegionIds = {} # A dict
         csvFileH = open( str(self.regionDefinitionFileNameLineEdit.text()), 'rb')
-        reader = csv.reader(csvFileH)
+        reader = UnicodeReader(csvFileH)
         if self.firstRowIsHeaderCheckBox.isChecked():
             # Eat header
             reader.next()
